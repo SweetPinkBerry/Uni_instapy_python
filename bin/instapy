@@ -1,0 +1,90 @@
+#!/usr/bin/env python3
+
+import argparse
+import sys
+import cv2
+from pathlib import Path
+from instapy.python_color2gray import grayscale_filter as python_color2gray
+from instapy.python_color2sepia import sepia_filter as python_color2sepia
+from instapy.numpy_color2gray import grayscale_filter as numpy_color2gray
+from instapy.numpy_color2sepia import sepia_filter as numpy_color2sepia
+from instapy.numba_color2gray import grayscale_filter as numba_color2gray
+from instapy.numba_color2sepia import sepia_filter as numba_color2sepia
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(
+        prog="instapy",
+        usage="%(prog)s [flag] argument",
+        description="Takes in flags that determine inputfile, filter, scaling, implementation, and outputfile"
+    )
+    parser.add_argument(
+        "-f FILE", "--file FILE",
+        dest="inputFile",
+        help="Give an image that you want to make a filtered copy of"
+    )
+    parser.add_argument(
+        "-se", "--sepia",
+        dest="sepia",
+        action="store_true",
+        help="Give the image a sepia filter"
+    )
+    parser.add_argument(
+        "-g", "--gray",
+        dest="grayscale",
+        action="store_true",
+        help="Give the image a grayscale filter"
+    )
+    parser.add_argument(
+        "-sc SCALE", "--scale SCALE",
+        dest="scale",
+        type=float,
+        help="Scale the image to a desired size, with a value between 0 and 1"
+    )
+    parser.add_argument(
+        "-i {python, numpy, numba}", "--implement {python, numpy, numba}",
+        dest="implementation",
+        help="Shoose the implementation you want to process the image with"
+    )
+    parser.add_argument(
+        "-o OUT", "--out OUT",
+        dest="outputFile",
+        help="Add a filename that you want the newly filtered image to have"
+    )
+
+    args = parser.parse_args()
+    file = Path(args.inputFile)
+
+    #Check that all requirements are fullfilled, and return an informative message if not
+    if (not file.is_file()) and (".jpg" not in args.inputFile) and (".jpeg" not in args.inputFile) and (".png" not in args.inputFile):
+        print("The input file must be of format: .jpg, .jpeg, or .png, and the the path to an existing image file.")
+    elif (not args.grayscale) and (not args.sepia):
+        print("A filter -g / --gray or -se / --sepia must be set.")
+    elif args.scale and args.scale <= 0:
+        print("The scale you size to cannot be smaller than 0.")
+    elif (not args.implementation == "python") and (not args.implementation == "numpy") and (not args.implementation == "numba"):
+        print("The implementation -i / --implement must be set to 'python', 'numpy', or 'numba'.")
+    elif args.outputFile and (".jpg" not in args.outputFile) and (".jpeg" not in args.outputFile) and (".png" not in args.outputFile):
+        print("The output file must be of format: .jpg, .jpeg, or .png.")
+    else:
+        image = cv2.imread(args.inputFile)
+        #Scale image
+        if args.scale:
+            image = cv2.resize(image, (0, 0), fx=args.scale, fy=args.scale)
+        #Apply filter
+        if args.grayscale:
+            if args.implementation == "python":
+                image = python_color2gray(image)
+            if args.implementation == "numpy":
+                image = numpy_color2gray(image)
+            if args.implementation == "numba":
+                image = numba_color2gray(image)
+        elif args.sepia:
+            if args.implementation == "python":
+                image = python_color2sepia(image)
+            if args.implementation == "numpy":
+                image = numpy_color2sepia(image)
+            if args.implementation == "numba":
+                image = numba_color2sepia(image)
+        #Create image
+        if args.outputFile:
+            cv2.imwrite(args.outputFile, image)
